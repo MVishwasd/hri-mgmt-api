@@ -90,3 +90,10 @@ type CreateTenantRequest struct {
 	Test_shard_id string             `json:"test_shard_id" `
 	TenantId      string             `json:"tenantId" `
 }
+
+type GetTenantRequest struct {
+	ID1           primitive.ObjectID `bson:"_id"`
+	ID2           primitive.ObjectID `bson:"id"`
+	Test_shard_id string             `bson:"test_shard_id" `
+	TenantId      string             `bson:"tenantid" `
+}

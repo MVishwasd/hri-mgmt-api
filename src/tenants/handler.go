@@ -7,8 +7,10 @@
 package tenants
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/Alvearie/hri-mgmt-api/common/auth"
 	"github.com/Alvearie/hri-mgmt-api/common/config"
 	"github.com/Alvearie/hri-mgmt-api/common/elastic"
 	"github.com/Alvearie/hri-mgmt-api/common/logwrapper"
@@ -28,6 +30,7 @@ type Handler interface {
 	Delete(echo.Context) error
 	//Added as part of Azure porting
 	CreateTenant(echo.Context) error
+	GetTenantById(echo.Context) error
 }
 
 // This struct is designed to make unit testing easier. It has function references for the calls to backend
@@ -42,7 +45,8 @@ type theHandler struct {
 	getById func(string, string, *elasticsearch.Client) (int, interface{})
 	delete  func(string, string, *elasticsearch.Client) (int, interface{})
 	//Added as part of Azure porting
-	createTenant func(string, string, *mongo.Collection) (int, interface{})
+	createTenant  func(string, string, *mongo.Collection) (int, interface{})
+	getTenantById func(string, string, *mongo.Collection) (int, interface{})
 }
 
 func NewHandler(config config.Config) Handler {
@@ -54,6 +58,7 @@ func NewHandler(config config.Config) Handler {
 		getById:         GetById,
 		delete:          Delete,
 		createTenant:    CreateTenant,
+		getTenantById:   GetTenatById,
 	}
 }
 
@@ -178,10 +183,23 @@ func (h *theHandler) Delete(c echo.Context) error {
 }
 func (h *theHandler) CreateTenant(c echo.Context) error {
 	requestId := c.Request().Header.Get(echo.HeaderXRequestID)
-	//authHeader := c.Request().Header.Get(echo.HeaderAuthorization)
+	authHeader := c.Request().Header.Get(echo.HeaderAuthorization)
 	prefix := "tenants/handler/create"
 	var logger = logwrapper.GetMyLogger(requestId, prefix)
+	jwtValidator := auth.NewValidator(h.config.AzOidcIssuer, h.config.AzJwtAudienceId)
+	//JWT claims validation
+	claims, errResp := jwtValidator.GetValidatedClaims("", authHeader, "")
 
+	if errResp != nil {
+		return c.JSON(errResp.Code, errResp.Body)
+	}
+
+	// validate that the Subject claim (integrator ID) is not missing
+	if claims.Subject == "" {
+		msg := fmt.Sprintf("config.MsgSubClaimRequiredInJwt")
+		fmt.Println(msg)
+		return c.JSON(http.StatusUnauthorized, response.NewErrorDetail(requestId, msg))
+	}
 	// bind & validate request body
 	var request model.CreateTenant
 	if err := c.Bind(&request); err != nil {
@@ -194,4 +212,46 @@ func (h *theHandler) CreateTenant(c echo.Context) error {
 	}
 
 	return c.JSON(h.createTenant(requestId, request.TenantId, mongoApi.GetMongoCollection()))
+}
+
+func (h *theHandler) GetTenantById(c echo.Context) error {
+	requestId := c.Request().Header.Get(echo.HeaderXRequestID)
+	prefix := "tenant/handler/GetById"
+	var logger = logwrapper.GetMyLogger(requestId, prefix)
+
+	logger.Debugln("Start Tenant_GetById Handler")
+
+	tenantId := c.Param(param.TenantId)
+	authHeader := c.Request().Header.Get(echo.HeaderAuthorization)
+	jwtValidator := auth.NewValidator(h.config.AzOidcIssuer, h.config.AzJwtAudienceId)
+	//JWT claims validation
+	claims, errResp := jwtValidator.GetValidatedClaims("", authHeader, "")
+
+	if errResp != nil {
+		return c.JSON(errResp.Code, errResp.Body)
+	}
+
+	// validate that the Subject claim (integrator ID) is not missing
+	if claims.Subject == "" {
+		msg := fmt.Sprintf("config.MsgSubClaimRequiredInJwt")
+		fmt.Println(msg)
+		return c.JSON(http.StatusUnauthorized, response.NewErrorDetail(requestId, msg))
+	}
+	// check bearer token
+	// service := elastic.CreateResourceControllerService()
+	// code, err := h.checkElasticIAM(h.config.ElasticServiceCrn, authHeader, service)
+	// if err != nil {
+	// 	msg := err.Error()
+	// 	logger.Errorln(msg)
+	// 	return c.JSON(code, response.NewErrorDetail(requestId, msg))
+	// }
+
+	// esClient, err := elastic.ClientFromConfig(h.config)
+	// if err != nil {
+	// 	msg := err.Error()
+	// 	logger.Errorln(msg)
+	// 	return c.JSON(http.StatusInternalServerError, response.NewErrorDetail(requestId, msg))
+	// }
+
+	return c.JSON(h.getTenantById(requestId, tenantId, mongoApi.GetMongoCollection()))
 }

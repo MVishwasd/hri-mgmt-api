@@ -7,6 +7,8 @@ package auth
 
 import (
 	"strings"
+
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 // ClaimsHolder is an interface to support testing
@@ -15,10 +17,14 @@ type ClaimsHolder interface {
 }
 
 type HriClaims struct {
-	// Claim information extracted from a JWT access token
-	Scope    string   `json:"scope"`
-	Subject  string   `json:"sub"`
-	Audience []string `json:"aud"`
+	// jwt.Audience can marshal string or []string json types
+	Audience jwt.Audience `json:"aud"`
+	Subject  string       `json:"sub"`
+
+	// Some OAuth services use `scopes` (IBM AppID) and other use `roles` (Azure AD).
+	// This extracts both if present and HasScope() searches both
+	Scope string   `json:"scope"`
+	Roles []string `json:"roles"`
 }
 
 func (c HriClaims) HasScope(claim string) bool {

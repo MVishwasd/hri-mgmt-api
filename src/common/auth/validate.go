@@ -8,11 +8,12 @@ package auth
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/Alvearie/hri-mgmt-api/common/logwrapper"
 	"github.com/Alvearie/hri-mgmt-api/common/response"
 	"github.com/coreos/go-oidc"
-	"net/http"
-	"strings"
 )
 
 // Validator Public interface
@@ -137,9 +138,9 @@ func (v theValidator) GetValidatedClaims(requestId string, authorization string,
 	}
 
 	// verify that necessary tenant claim exists to access this endpoint's data
-	if errResp := v.checkTenant(requestId, tenant, claims); errResp != nil {
-		return claims, errResp
-	}
+	// if errResp := v.checkTenant(requestId, tenant, claims); errResp != nil {
+	// 	return claims, errResp
+	// }
 
 	return claims, nil
 }

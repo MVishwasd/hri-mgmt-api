@@ -167,6 +167,7 @@ func configureMgmtServer(e *echo.Echo, args []string) (int, func(), error) {
 	e.DELETE(fmt.Sprintf("/hri/tenants/:%s", param.TenantId), tenantsHandler.Delete)
 	//Added as part of Azure porting
 	e.POST(fmt.Sprintf("/hri/az/tenants/:%s", param.TenantId), tenantsHandler.CreateTenant)
+	e.GET(fmt.Sprintf("/hri/az/tenants/:%s", param.TenantId), tenantsHandler.GetTenantById)
 
 	// Batches routing
 	batchesHandler := batches.NewHandler(config)

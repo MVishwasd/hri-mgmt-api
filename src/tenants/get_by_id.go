@@ -6,13 +6,19 @@
 package tenants
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/Alvearie/hri-mgmt-api/common/logwrapper"
+	"github.com/Alvearie/hri-mgmt-api/common/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	// "fmt"
+	"net/http"
+
 	"github.com/Alvearie/hri-mgmt-api/common/elastic"
 	"github.com/elastic/go-elasticsearch/v7"
-	"net/http"
 )
 
 func GetById(requestId string, tenantId string, client *elasticsearch.Client) (int, interface{}) {
@@ -37,4 +43,22 @@ func GetById(requestId string, tenantId string, client *elasticsearch.Client) (i
 	}
 
 	return http.StatusOK, resultBody[0]
+}
+
+func GetTenatById(requestId string, tenantId string, mongoClient *mongo.Collection) (int, interface{}) {
+	prefix := "tenant/GetById"
+	var logger = logwrapper.GetMyLogger(requestId, prefix)
+	logger.Debugln("Start Tenants Get By ID")
+
+	var (
+		ctx    = context.Background()
+		result model.GetTenantRequest
+		filter = bson.M{"tenantid": tenantId}
+	)
+	err := mongoClient.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		return http.StatusBadRequest, result
+
+	}
+	return http.StatusOK, result
 }
